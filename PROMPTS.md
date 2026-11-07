@@ -82,3 +82,19 @@
 - Tested duplicate request handling.
 - Tested rejection of idempotency keys reused with different request data.
 - All 5 unit tests passed successfully.
+
+### 5. PostgreSQL Integration Testing
+- Used AI to create a database integration test for the deposit operation.
+- Tested the deposit using the separate PostgreSQL test database.
+- Verified that the account balance changed from 100.00 to 150.00.
+- Verified that a CREDIT ledger entry was created.
+- Ran the complete Maven test suite.
+- All 11 tests passed with BUILD SUCCESS.
+
+### 6. Transaction Integration Testing
+- Added PostgreSQL integration tests for withdrawals and transfers.
+- Verified withdrawal balance updates and DEBIT ledger entries.
+- Verified sender and receiver balances after transfers.
+- Verified that transfers create matching DEBIT and CREDIT ledger entries.
+- Ran all Maven tests successfully.
+- All 12 tests passed with zero failures or errors.
