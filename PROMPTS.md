@@ -76,3 +76,9 @@
 ### 3. Testing
 - Ran Maven tests after implementing the transaction and idempotency components.
 - Confirmed BUILD SUCCESS.
+
+### 4. Unit Testing
+- Added unit tests for successful deposits and invalid amounts.
+- Tested duplicate request handling.
+- Tested rejection of idempotency keys reused with different request data.
+- All 5 unit tests passed successfully.

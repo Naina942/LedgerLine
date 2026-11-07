@@ -89,3 +89,16 @@
 \## Security Development Note
 
 The mitigations marked as Planned are design requirements and must be implemented and tested before the application is considered secure.
+
+## Day 2 Security Updates
+
+### Implemented
+- Added database row-level pessimistic locking for account updates.
+- Added idempotency keys with unique database constraints.
+- Added request hashing to detect reuse of an idempotency key with different request data.
+- Used transactional service methods for deposits, withdrawals and transfers.
+
+### Testing Status
+- Five unit tests passed successfully.
+- Concurrent duplicate-request handling and database-level concurrency tests are still pending.
+- Account ownership authorization is still pending.
