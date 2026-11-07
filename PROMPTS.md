@@ -59,3 +59,20 @@
 \- IDE dependency errors should be checked separately from Maven build results.
 
 \- Always verify changes by running automated tests.
+
+## Date: 2026-11-07
+
+### 1. Transaction Management
+- Implemented deposit, withdrawal and transfer operations.
+- Used BigDecimal for monetary calculations.
+- Added database row locking to protect concurrent account updates.
+- Used database transactions to keep balance and ledger changes consistent.
+
+### 2. Idempotency
+- Created an IdempotencyRecord entity to store unique request keys.
+- Added a repository to retrieve and check idempotency records.
+- Used a request hash to help detect reuse of a key with different request data.
+
+### 3. Testing
+- Ran Maven tests after implementing the transaction and idempotency components.
+- Confirmed BUILD SUCCESS.
