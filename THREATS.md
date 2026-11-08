@@ -102,3 +102,35 @@ The mitigations marked as Planned are design requirements and must be implemente
 - Five unit tests passed successfully.
 - Concurrent duplicate-request handling and database-level concurrency tests are still pending.
 - Account ownership authorization is still pending.
+
+
+## 2026-11-08 – Transaction History and Authentication Risks
+## Day 3
+
+### Threat: Unauthorized Transaction History Access
+**Risk:** A customer may attempt to access another customer's transaction history.
+
+**Mitigation:**
+- Require authentication for transaction history endpoints.
+- Derive the username from the authenticated security context.
+- Filter transactions using source and destination account ownership.
+- Never accept a customer username from an untrusted request parameter.
+
+**Verification:** Transaction history query and authentication behavior are under testing.
+
+### Threat: Missing Transaction History Records
+**Risk:** Transactions with a NULL source account, such as deposits, may be excluded by incorrect database joins.
+
+**Mitigation:**
+- Use explicit LEFT JOIN associations for source and destination accounts and their owners.
+- Verify transaction history against persisted PostgreSQL records.
+- Test deposits, withdrawals and transfers separately.
+
+### Threat: Expired or Invalid JWT
+**Risk:** Expired or invalid tokens may result in failed authentication or unauthorized access attempts.
+
+**Mitigation:**
+- Validate JWT signatures and expiration.
+- Reject invalid or expired tokens.
+- Require valid authentication for protected endpoints.
+- Test token expiration and invalid-token scenarios.

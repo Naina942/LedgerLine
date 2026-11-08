@@ -98,3 +98,36 @@
 - Verified that transfers create matching DEBIT and CREDIT ledger entries.
 - Ran all Maven tests successfully.
 - All 12 tests passed with zero failures or errors.
+
+
+## 2026-11-08 – Transaction History API Debugging
+
+### Work completed
+- Implemented the GET `/api/transactions/my` endpoint.
+- Connected TransactionController, TransactionService and TransactionRepository.
+- Verified Transaction, Account and User entity relationships.
+- Inspected PostgreSQL transaction records and confirmed successful deposit persistence.
+- Verified that the deposited transaction belongs to the correct customer account.
+- Enabled Hibernate SQL logging to investigate the empty transaction history response.
+- Updated the JPQL query to use explicit LEFT JOIN associations.
+
+### AI assistance
+Used ChatGPT to:
+- Review entity mappings and repository queries.
+- Understand Hibernate-generated SQL joins.
+- Investigate why deposit transactions were missing from transaction history.
+- Review JWT authentication and Spring Security configuration.
+
+### Mistakes / What AI got wrong
+- The initial diagnosis attributed the empty history response to implicit INNER JOIN behavior. This was a possible explanation, not a confirmed root cause.
+- The updated JPQL query still needs to be verified through Postman.
+- The 403 response was suspected to be caused by an expired JWT token, but this has not yet been confirmed.
+
+### Current status
+- Deposit persistence: Verified.
+- Account ownership mapping: Verified.
+- Transaction history endpoint: Implemented, verification pending.
+- JWT authentication: Under investigation.
+
+### Learning
+Learned how LEFT JOIN associations work in JPQL, how to inspect Hibernate SQL logs, and how JWT authentication is processed through Spring Security filters.
