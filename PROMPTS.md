@@ -100,34 +100,85 @@
 - All 12 tests passed with zero failures or errors.
 
 
-## 2026-11-08 – Transaction History API Debugging
+## 2026-11-08 – Authentication, Account APIs and Transaction History
 
-### Work completed
-- Implemented the GET `/api/transactions/my` endpoint.
+### 1. Authentication and Security
+
+- Implemented user registration and login APIs.
+- Added BCrypt password hashing.
+- Implemented JWT-based authentication using Spring Security.
+- Added a JWT authentication filter to validate bearer tokens.
+- Configured stateless session management.
+- Loaded database passwords and JWT secrets through environment variables instead of hardcoding credentials.
+- Disabled unnecessary Hibernate SQL bind TRACE logging.
+
+### 2. Account Management APIs
+
+- Implemented account creation for authenticated customers.
+- Added GET `/api/accounts/my` to retrieve the logged-in customer's accounts.
+- Verified successful account creation through Postman.
+- Verified that account details and balances are returned for the authenticated customer.
+
+### 3. Transaction History API
+
+- Implemented GET `/api/transactions/my`.
 - Connected TransactionController, TransactionService and TransactionRepository.
-- Verified Transaction, Account and User entity relationships.
-- Inspected PostgreSQL transaction records and confirmed successful deposit persistence.
-- Verified that the deposited transaction belongs to the correct customer account.
-- Enabled Hibernate SQL logging to investigate the empty transaction history response.
 - Updated the JPQL query to use explicit LEFT JOIN associations.
+- Verified that deposit transactions with a null source account appear in the customer's transaction history.
+- Confirmed that the transaction history belongs to the authenticated customer.
 
-### AI assistance
+### 4. Transaction Verification
+
+- Registered a test customer and successfully logged in.
+- Created a savings account.
+- Deposited ₹1,000 successfully.
+- Withdrew ₹300 successfully.
+- Verified the remaining account balance was ₹700.
+- Attempted a ₹1,000 withdrawal with only ₹700 available.
+- The withdrawal was rejected due to insufficient balance.
+- Verified that the account balance remained ₹700 after the rejected withdrawal.
+
+### 5. Automated Testing
+
+- Updated transaction service and integration tests.
+- Configured the test environment to use a separate PostgreSQL test database.
+- Replaced the hardcoded test JWT secret with an environment variable.
+- Ran the complete Maven test suite.
+- All 14 tests passed with zero failures and zero errors.
+
+### 6. Git and Version Control
+
+- Committed the backend authentication, account and transaction API changes.
+- Pushed the changes to the GitHub main branch.
+- Verified that the local working tree was clean and synchronized with the remote repository.
+
+### AI Assistance
+
 Used ChatGPT to:
-- Review entity mappings and repository queries.
-- Understand Hibernate-generated SQL joins.
-- Investigate why deposit transactions were missing from transaction history.
-- Review JWT authentication and Spring Security configuration.
 
-### Mistakes / What AI got wrong
-- The initial diagnosis attributed the empty history response to implicit INNER JOIN behavior. This was a possible explanation, not a confirmed root cause.
-- The updated JPQL query still needs to be verified through Postman.
-- The 403 response was suspected to be caused by an expired JWT token, but this has not yet been confirmed.
+- Review Spring Security and JWT authentication implementation.
+- Debug registration, login and transaction history API issues.
+- Review repository queries and entity relationships.
+- Improve application configuration and environment variable handling.
+- Review test coverage and identify additional security test cases.
 
-### Current status
-- Deposit persistence: Verified.
-- Account ownership mapping: Verified.
-- Transaction history endpoint: Implemented, verification pending.
-- JWT authentication: Under investigation.
+### Mistakes / What AI Got Wrong
+
+- Initially suspected that the transaction history issue was caused by implicit INNER JOIN behavior. The LEFT JOIN query was updated and the endpoint was subsequently verified through Postman.
+- Initially suspected that a 403 response was caused by JWT expiration. Further investigation showed that an old username was being reused during duplicate registration.
+- An insufficient-balance withdrawal initially produced an unhandled server exception. A clean client-facing error response still needs to be implemented.
+
+### Current Status
+
+- Registration and login APIs: Verified.
+- JWT authentication: Verified.
+- Account creation and retrieval: Verified.
+- Deposit and withdrawal: Verified.
+- Transaction history: Verified.
+- Insufficient balance protection: Verified.
+- Automated tests: 14 passed.
+- Duplicate idempotency, concurrent withdrawal and account isolation tests: Further verification pending.
 
 ### Learning
-Learned how LEFT JOIN associations work in JPQL, how to inspect Hibernate SQL logs, and how JWT authentication is processed through Spring Security filters.
+
+Learned how JWT filters authenticate requests, how Spring Security obtains user authorities, how LEFT JOIN supports deposit history queries, how environment variables protect application secrets, and how to verify money integrity using PostgreSQL integration tests. work in JPQL, how to inspect Hibernate SQL logs, and how JWT authentication is processed through Spring Security filters.
