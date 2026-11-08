@@ -45,7 +45,6 @@ class TransactionIntegrationTest {
     @Test
     void depositShouldUpdateDatabaseAndCreateLedgerEntry() {
 
-        // Create a test user
         User user = new User();
         user.setUsername("integration_user");
         user.setEmail("integration@example.com");
@@ -54,7 +53,6 @@ class TransactionIntegrationTest {
 
         user = userRepository.save(user);
 
-        // Create a test account
         Account account = new Account();
         account.setAccountNumber("INT10001");
         account.setOwner(user);
@@ -65,17 +63,15 @@ class TransactionIntegrationTest {
 
         account = accountRepository.save(account);
 
-        // Perform a real database deposit
         Transaction transaction = transactionService.deposit(
                 account.getAccountNumber(),
                 new BigDecimal("50.00"),
-                "integration-deposit-001"
+                "integration-deposit-001",
+                "integration_user"
         );
 
-        // Verify transaction was created
         assertNotNull(transaction.getId());
 
-        // Verify updated account balance in database
         Account updatedAccount = accountRepository
                 .findByAccountNumber(account.getAccountNumber())
                 .orElseThrow();
@@ -85,7 +81,6 @@ class TransactionIntegrationTest {
                 updatedAccount.getBalance()
         );
 
-        // Verify ledger entry was created
         List<LedgerEntry> entries =
                 ledgerEntryRepository.findByAccountId(account.getId());
 
@@ -96,151 +91,143 @@ class TransactionIntegrationTest {
                 entries.get(0).getAmount()
         );
     }
+
     @Test
-void withdrawalShouldUpdateDatabaseAndCreateLedgerEntry() {
+    void withdrawalShouldUpdateDatabaseAndCreateLedgerEntry() {
 
-    // Create a test user
-    User user = new User();
-    user.setUsername("withdrawal_user");
-    user.setEmail("withdrawal@example.com");
-    user.setPassword("test-password");
-    user.setRole(Role.CUSTOMER);
+        User user = new User();
+        user.setUsername("withdrawal_user");
+        user.setEmail("withdrawal@example.com");
+        user.setPassword("test-password");
+        user.setRole(Role.CUSTOMER);
 
-    user = userRepository.save(user);
+        user = userRepository.save(user);
 
-    // Create a test account
-    Account account = new Account();
-    account.setAccountNumber("INT10002");
-    account.setOwner(user);
-    account.setAccountType(AccountType.SAVINGS);
-    account.setBalance(new BigDecimal("200.00"));
-    account.setCurrency("INR");
-    account.setStatus(AccountStatus.ACTIVE);
+        Account account = new Account();
+        account.setAccountNumber("INT10002");
+        account.setOwner(user);
+        account.setAccountType(AccountType.SAVINGS);
+        account.setBalance(new BigDecimal("200.00"));
+        account.setCurrency("INR");
+        account.setStatus(AccountStatus.ACTIVE);
 
-    account = accountRepository.save(account);
+        account = accountRepository.save(account);
 
-    // Perform withdrawal
-    Transaction transaction = transactionService.withdraw(
-            account.getAccountNumber(),
-            new BigDecimal("50.00"),
-            "integration-withdrawal-001"
-    );
+        Transaction transaction = transactionService.withdraw(
+                account.getAccountNumber(),
+                new BigDecimal("50.00"),
+                "integration-withdrawal-001",
+                "withdrawal_user"
+        );
 
-    assertNotNull(transaction.getId());
+        assertNotNull(transaction.getId());
 
-    // Verify updated balance
-    Account updatedAccount = accountRepository
-            .findByAccountNumber(account.getAccountNumber())
-            .orElseThrow();
+        Account updatedAccount = accountRepository
+                .findByAccountNumber(account.getAccountNumber())
+                .orElseThrow();
 
-    assertEquals(
-            new BigDecimal("150.00"),
-            updatedAccount.getBalance()
-    );
+        assertEquals(
+                new BigDecimal("150.00"),
+                updatedAccount.getBalance()
+        );
 
-    // Verify debit ledger entry
-    List<LedgerEntry> entries =
-            ledgerEntryRepository.findByAccountId(account.getId());
+        List<LedgerEntry> entries =
+                ledgerEntryRepository.findByAccountId(account.getId());
 
-    assertEquals(1, entries.size());
-    assertEquals(LedgerEntryType.DEBIT, entries.get(0).getEntryType());
-    assertEquals(
-            new BigDecimal("50.00"),
-            entries.get(0).getAmount()
-    );
-}
-  @Test
-void transferShouldUpdateBothAccountsAndCreateTwoLedgerEntries() {
+        assertEquals(1, entries.size());
+        assertEquals(LedgerEntryType.DEBIT, entries.get(0).getEntryType());
+        assertEquals(
+                new BigDecimal("50.00"),
+                entries.get(0).getAmount()
+        );
+    }
 
-    // Create test user
-    User user = new User();
-    user.setUsername("transfer_user");
-    user.setEmail("transfer@example.com");
-    user.setPassword("test-password");
-    user.setRole(Role.CUSTOMER);
+    @Test
+    void transferShouldUpdateBothAccountsAndCreateTwoLedgerEntries() {
 
-    user = userRepository.save(user);
+        User user = new User();
+        user.setUsername("transfer_user");
+        user.setEmail("transfer@example.com");
+        user.setPassword("test-password");
+        user.setRole(Role.CUSTOMER);
 
-    // Create sender account
-    Account sender = new Account();
-    sender.setAccountNumber("INT10003");
-    sender.setOwner(user);
-    sender.setAccountType(AccountType.SAVINGS);
-    sender.setBalance(new BigDecimal("500.00"));
-    sender.setCurrency("INR");
-    sender.setStatus(AccountStatus.ACTIVE);
+        user = userRepository.save(user);
 
-    sender = accountRepository.save(sender);
+        Account sender = new Account();
+        sender.setAccountNumber("INT10003");
+        sender.setOwner(user);
+        sender.setAccountType(AccountType.SAVINGS);
+        sender.setBalance(new BigDecimal("500.00"));
+        sender.setCurrency("INR");
+        sender.setStatus(AccountStatus.ACTIVE);
 
-    // Create receiver account
-    Account receiver = new Account();
-    receiver.setAccountNumber("INT10004");
-    receiver.setOwner(user);
-    receiver.setAccountType(AccountType.SAVINGS);
-    receiver.setBalance(new BigDecimal("100.00"));
-    receiver.setCurrency("INR");
-    receiver.setStatus(AccountStatus.ACTIVE);
+        sender = accountRepository.save(sender);
 
-    receiver = accountRepository.save(receiver);
+        Account receiver = new Account();
+        receiver.setAccountNumber("INT10004");
+        receiver.setOwner(user);
+        receiver.setAccountType(AccountType.SAVINGS);
+        receiver.setBalance(new BigDecimal("100.00"));
+        receiver.setCurrency("INR");
+        receiver.setStatus(AccountStatus.ACTIVE);
 
-    // Perform transfer
-    Transaction transaction = transactionService.transfer(
-            sender.getAccountNumber(),
-            receiver.getAccountNumber(),
-            new BigDecimal("200.00"),
-            "integration-transfer-001"
-    );
+        receiver = accountRepository.save(receiver);
 
-    assertNotNull(transaction.getId());
+        Transaction transaction = transactionService.transfer(
+                sender.getAccountNumber(),
+                receiver.getAccountNumber(),
+                new BigDecimal("200.00"),
+                "integration-transfer-001",
+                "transfer_user"
+        );
 
-    // Verify sender balance
-    Account updatedSender = accountRepository
-            .findByAccountNumber(sender.getAccountNumber())
-            .orElseThrow();
+        assertNotNull(transaction.getId());
 
-    assertEquals(
-            new BigDecimal("300.00"),
-            updatedSender.getBalance()
-    );
+        Account updatedSender = accountRepository
+                .findByAccountNumber(sender.getAccountNumber())
+                .orElseThrow();
 
-    // Verify receiver balance
-    Account updatedReceiver = accountRepository
-            .findByAccountNumber(receiver.getAccountNumber())
-            .orElseThrow();
+        assertEquals(
+                new BigDecimal("300.00"),
+                updatedSender.getBalance()
+        );
 
-    assertEquals(
-            new BigDecimal("300.00"),
-            updatedReceiver.getBalance()
-    );
+        Account updatedReceiver = accountRepository
+                .findByAccountNumber(receiver.getAccountNumber())
+                .orElseThrow();
 
-    // Verify both ledger entries
-    List<LedgerEntry> senderEntries =
-            ledgerEntryRepository.findByAccountId(sender.getId());
+        assertEquals(
+                new BigDecimal("300.00"),
+                updatedReceiver.getBalance()
+        );
 
-    List<LedgerEntry> receiverEntries =
-            ledgerEntryRepository.findByAccountId(receiver.getId());
+        List<LedgerEntry> senderEntries =
+                ledgerEntryRepository.findByAccountId(sender.getId());
 
-    assertEquals(1, senderEntries.size());
-    assertEquals(1, receiverEntries.size());
+        List<LedgerEntry> receiverEntries =
+                ledgerEntryRepository.findByAccountId(receiver.getId());
 
-    assertEquals(
-            LedgerEntryType.DEBIT,
-            senderEntries.get(0).getEntryType()
-    );
+        assertEquals(1, senderEntries.size());
+        assertEquals(1, receiverEntries.size());
 
-    assertEquals(
-            LedgerEntryType.CREDIT,
-            receiverEntries.get(0).getEntryType()
-    );
+        assertEquals(
+                LedgerEntryType.DEBIT,
+                senderEntries.get(0).getEntryType()
+        );
 
-    assertEquals(
-            new BigDecimal("200.00"),
-            senderEntries.get(0).getAmount()
-    );
+        assertEquals(
+                LedgerEntryType.CREDIT,
+                receiverEntries.get(0).getEntryType()
+        );
 
-    assertEquals(
-            new BigDecimal("200.00"),
-            receiverEntries.get(0).getAmount()
-    );
-}
+        assertEquals(
+                new BigDecimal("200.00"),
+                senderEntries.get(0).getAmount()
+        );
+
+        assertEquals(
+                new BigDecimal("200.00"),
+                receiverEntries.get(0).getAmount()
+        );
+    }
 }

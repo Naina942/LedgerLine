@@ -6,8 +6,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,13 +51,17 @@ public class TransactionService {
     public Transaction deposit(
             String accountNumber,
             BigDecimal amount,
-            String idempotencyKey) {
+            String idempotencyKey,
+            String username) {
 
         validateAccountNumber(accountNumber);
         validateAmount(amount);
+        validateOwnership(accountNumber, username);
 
         String requestHash = generateHash(
-                "DEPOSIT", accountNumber, normalizeAmount(amount));
+                "DEPOSIT",
+                accountNumber,
+                normalizeAmount(amount));
 
         Optional<Transaction> existing =
                 findExistingTransaction(idempotencyKey, requestHash);
@@ -106,13 +112,17 @@ public class TransactionService {
     public Transaction withdraw(
             String accountNumber,
             BigDecimal amount,
-            String idempotencyKey) {
+            String idempotencyKey,
+            String username) {
 
         validateAccountNumber(accountNumber);
         validateAmount(amount);
+        validateOwnership(accountNumber, username);
 
         String requestHash = generateHash(
-                "WITHDRAWAL", accountNumber, normalizeAmount(amount));
+                "WITHDRAWAL",
+                accountNumber,
+                normalizeAmount(amount));
 
         Optional<Transaction> existing =
                 findExistingTransaction(idempotencyKey, requestHash);
@@ -168,7 +178,8 @@ public class TransactionService {
             String fromAccountNumber,
             String toAccountNumber,
             BigDecimal amount,
-            String idempotencyKey) {
+            String idempotencyKey,
+            String username) {
 
         validateAccountNumber(fromAccountNumber);
         validateAccountNumber(toAccountNumber);
@@ -178,6 +189,9 @@ public class TransactionService {
             throw new IllegalArgumentException(
                     "Cannot transfer to the same account");
         }
+
+        // Only the sender must own the source account.
+        validateOwnership(fromAccountNumber, username);
 
         String requestHash = generateHash(
                 "TRANSFER",
@@ -192,7 +206,7 @@ public class TransactionService {
             return existing.get();
         }
 
-        // Lock accounts in a consistent order.
+        // Lock accounts in a consistent order to reduce deadlocks.
         String firstAccountNumber =
                 fromAccountNumber.compareTo(toAccountNumber) < 0
                         ? fromAccountNumber : toAccountNumber;
@@ -245,7 +259,7 @@ public class TransactionService {
 
         transactionRepository.save(transaction);
 
-        // Sender DEBIT
+        // Sender DEBIT entry
         LedgerEntry debit = new LedgerEntry();
         debit.setTransaction(transaction);
         debit.setAccount(sender);
@@ -254,7 +268,7 @@ public class TransactionService {
 
         ledgerEntryRepository.save(debit);
 
-        // Receiver CREDIT
+        // Receiver CREDIT entry
         LedgerEntry credit = new LedgerEntry();
         credit.setTransaction(transaction);
         credit.setAccount(receiver);
@@ -268,7 +282,29 @@ public class TransactionService {
         return transaction;
     }
 
-    // CHECK EXISTING REQUEST
+    // GET LOGGED-IN USER TRANSACTION HISTORY
+    @Transactional(readOnly = true)
+    public List<Transaction> getMyTransactions(String username) {
+        return transactionRepository.findMyTransactions(username);
+    }
+
+    // VALIDATE ACCOUNT OWNERSHIP
+    private void validateOwnership(
+            String accountNumber,
+            String username) {
+
+        boolean isOwner =
+                accountRepository.existsByAccountNumberAndOwnerUsername(
+                        accountNumber,
+                        username);
+
+        if (!isOwner) {
+            throw new AccessDeniedException(
+                    "You are not authorized to access this account");
+        }
+    }
+
+    // CHECK EXISTING IDEMPOTENCY REQUEST
     private Optional<Transaction> findExistingTransaction(
             String idempotencyKey,
             String requestHash) {
@@ -309,7 +345,6 @@ public class TransactionService {
         record.setRequestHash(requestHash);
         record.setTransaction(transaction);
 
-        // Database unique constraint protects concurrent duplicate keys.
         idempotencyRecordRepository.saveAndFlush(record);
     }
 
@@ -319,7 +354,8 @@ public class TransactionService {
         try {
             String requestData = String.join("|", values);
 
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest =
+                    MessageDigest.getInstance("SHA-256");
 
             byte[] hash = digest.digest(
                     requestData.getBytes(StandardCharsets.UTF_8));
@@ -328,41 +364,54 @@ public class TransactionService {
 
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException(
-                    "Unable to generate request hash", exception);
+                    "Unable to generate request hash",
+                    exception);
         }
     }
 
+    // NORMALIZE AMOUNT
     private String normalizeAmount(BigDecimal amount) {
         return amount.stripTrailingZeros().toPlainString();
     }
 
-    // VALIDATIONS
+    // VALIDATE AMOUNT
     private void validateAmount(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+
+        if (amount == null ||
+                amount.compareTo(BigDecimal.ZERO) <= 0) {
+
             throw new IllegalArgumentException(
                     "Amount must be greater than zero");
         }
     }
 
+    // VALIDATE ACCOUNT NUMBER
     private void validateAccountNumber(String accountNumber) {
+
         if (accountNumber == null || accountNumber.isBlank()) {
             throw new IllegalArgumentException(
                     "Account number is required");
         }
     }
 
+    // VALIDATE IDEMPOTENCY KEY
     private void validateIdempotencyKey(String idempotencyKey) {
+
         if (idempotencyKey == null
                 || idempotencyKey.isBlank()
                 || idempotencyKey.length() > 100) {
+
             throw new IllegalArgumentException(
                     "A valid idempotency key is required (maximum 100 characters)");
         }
     }
 
+    // VALIDATE ACCOUNT STATUS
     private void validateAccount(Account account) {
+
         if (account.getStatus() != AccountStatus.ACTIVE) {
-            throw new IllegalArgumentException("Account is not active");
+            throw new IllegalArgumentException(
+                    "Account is not active");
         }
     }
 }

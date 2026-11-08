@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.ledgerline.ledgerline.entity.Account;
 import com.ledgerline.ledgerline.entity.AccountStatus;
@@ -39,6 +40,8 @@ import com.ledgerline.ledgerline.service.TransactionService;
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
 
+    private static final String USERNAME = "naina_test";
+
     @Mock
     private AccountRepository accountRepository;
 
@@ -54,6 +57,12 @@ class TransactionServiceTest {
     @InjectMocks
     private TransactionService transactionService;
 
+    private void mockOwnership(String accountNumber) {
+        when(accountRepository.existsByAccountNumberAndOwnerUsername(
+                accountNumber, USERNAME))
+                .thenReturn(true);
+    }
+
     @Test
     void depositShouldIncreaseBalance() {
 
@@ -62,6 +71,8 @@ class TransactionServiceTest {
         account.setBalance(new BigDecimal("100.00"));
         account.setStatus(AccountStatus.ACTIVE);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-001"))
                 .thenReturn(Optional.empty());
 
@@ -69,7 +80,7 @@ class TransactionServiceTest {
                 .thenReturn(Optional.of(account));
 
         transactionService.deposit(
-                "ACC100", new BigDecimal("50.00"), "KEY-001");
+                "ACC100", new BigDecimal("50.00"), "KEY-001", USERNAME);
 
         assertEquals(new BigDecimal("150.00"), account.getBalance());
 
@@ -89,7 +100,7 @@ class TransactionServiceTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> transactionService.deposit(
-                        "ACC100", new BigDecimal("-50"), "KEY-002"));
+                        "ACC100", new BigDecimal("-50"), "KEY-002", USERNAME));
 
         verifyNoInteractions(accountRepository);
     }
@@ -111,15 +122,19 @@ class TransactionServiceTest {
         record.setRequestHash(requestHash);
         record.setTransaction(existingTransaction);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-003"))
                 .thenReturn(Optional.of(record));
 
         Transaction result = transactionService.deposit(
-                "ACC100", new BigDecimal("50.00"), "KEY-003");
+                "ACC100", new BigDecimal("50.00"), "KEY-003", USERNAME);
 
         assertSame(existingTransaction, result);
 
-        verifyNoInteractions(accountRepository);
+        verify(accountRepository, never())
+                .findByAccountNumberForUpdate("ACC100");
+
         verify(transactionRepository, never())
                 .save(any(Transaction.class));
     }
@@ -131,15 +146,19 @@ class TransactionServiceTest {
         record.setIdempotencyKey("KEY-004");
         record.setRequestHash("different-request-hash");
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-004"))
                 .thenReturn(Optional.of(record));
 
         assertThrows(
                 IllegalArgumentException.class,
                 () -> transactionService.deposit(
-                        "ACC100", new BigDecimal("50.00"), "KEY-004"));
+                        "ACC100", new BigDecimal("50.00"), "KEY-004", USERNAME));
 
-        verifyNoInteractions(accountRepository);
+        verify(accountRepository, never())
+                .findByAccountNumberForUpdate("ACC100");
+
         verify(transactionRepository, never())
                 .save(any(Transaction.class));
     }
@@ -152,6 +171,8 @@ class TransactionServiceTest {
         account.setBalance(new BigDecimal("100.00"));
         account.setStatus(AccountStatus.ACTIVE);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-005"))
                 .thenReturn(Optional.empty());
 
@@ -159,7 +180,7 @@ class TransactionServiceTest {
                 .thenReturn(Optional.of(account));
 
         transactionService.withdraw(
-                "ACC100", new BigDecimal("30.00"), "KEY-005");
+                "ACC100", new BigDecimal("30.00"), "KEY-005", USERNAME);
 
         assertEquals(new BigDecimal("70.00"), account.getBalance());
 
@@ -181,6 +202,8 @@ class TransactionServiceTest {
         account.setBalance(new BigDecimal("100.00"));
         account.setStatus(AccountStatus.ACTIVE);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-006"))
                 .thenReturn(Optional.empty());
 
@@ -190,7 +213,7 @@ class TransactionServiceTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> transactionService.withdraw(
-                        "ACC100", new BigDecimal("150.00"), "KEY-006"));
+                        "ACC100", new BigDecimal("150.00"), "KEY-006", USERNAME));
 
         assertEquals(new BigDecimal("100.00"), account.getBalance());
 
@@ -214,6 +237,8 @@ class TransactionServiceTest {
         receiver.setBalance(new BigDecimal("200.00"));
         receiver.setStatus(AccountStatus.ACTIVE);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-007"))
                 .thenReturn(Optional.empty());
 
@@ -225,7 +250,7 @@ class TransactionServiceTest {
 
         transactionService.transfer(
                 "ACC100", "ACC200",
-                new BigDecimal("100.00"), "KEY-007");
+                new BigDecimal("100.00"), "KEY-007", USERNAME);
 
         assertEquals(new BigDecimal("400.00"), sender.getBalance());
         assertEquals(new BigDecimal("300.00"), receiver.getBalance());
@@ -272,6 +297,8 @@ class TransactionServiceTest {
         receiver.setBalance(new BigDecimal("200.00"));
         receiver.setStatus(AccountStatus.ACTIVE);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-008"))
                 .thenReturn(Optional.empty());
 
@@ -285,7 +312,7 @@ class TransactionServiceTest {
                 IllegalArgumentException.class,
                 () -> transactionService.transfer(
                         "ACC100", "ACC200",
-                        new BigDecimal("100.00"), "KEY-008"));
+                        new BigDecimal("100.00"), "KEY-008", USERNAME));
 
         assertEquals(new BigDecimal("50.00"), sender.getBalance());
         assertEquals(new BigDecimal("200.00"), receiver.getBalance());
@@ -314,21 +341,43 @@ class TransactionServiceTest {
         record.setRequestHash(requestHash);
         record.setTransaction(existingTransaction);
 
+        mockOwnership("ACC100");
+
         when(idempotencyRecordRepository.findByIdempotencyKey("KEY-009"))
                 .thenReturn(Optional.of(record));
 
         Transaction result = transactionService.transfer(
                 "ACC100", "ACC200",
-                new BigDecimal("100.00"), "KEY-009");
+                new BigDecimal("100.00"), "KEY-009", USERNAME);
 
         assertSame(existingTransaction, result);
 
-        verifyNoInteractions(accountRepository);
+        verify(accountRepository, never())
+                .findByAccountNumberForUpdate("ACC100");
 
         verify(transactionRepository, never())
                 .save(any(Transaction.class));
 
         verify(ledgerEntryRepository, never())
                 .save(any(LedgerEntry.class));
+    }
+
+    @Test
+    void depositShouldRejectAccountOwnedByAnotherUser() {
+
+        when(accountRepository.existsByAccountNumberAndOwnerUsername(
+                "ACC100", USERNAME))
+                .thenReturn(false);
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> transactionService.deposit(
+                        "ACC100", new BigDecimal("50.00"), "KEY-010", USERNAME));
+
+        verify(accountRepository, never())
+                .findByAccountNumberForUpdate("ACC100");
+
+        verify(transactionRepository, never())
+                .save(any(Transaction.class));
     }
 }
