@@ -134,3 +134,25 @@ The mitigations marked as Planned are design requirements and must be implemente
 - Reject invalid or expired tokens.
 - Require valid authentication for protected endpoints.
 - Test token expiration and invalid-token scenarios.
+
+
+## November 9, 2026 – Security Verification Update
+
+| Threat | Current status |
+|---|---|
+| Public user assigning ADMIN/AUDITOR role | Mitigated – registration assigns CUSTOMER |
+| Unauthorized account access by AUDITOR | Tested – 403 Forbidden |
+| Unauthorized transaction history access by AUDITOR | Tested – 403 Forbidden |
+| ADMIN accessing customer account APIs | Tested – 403 Forbidden |
+| CUSTOMER accessing own account API | Tested – 200 OK |
+| ADMIN accessing admin-only endpoint | Tested – 200 OK |
+| Duplicate transaction requests | Idempotency implemented; further transfer verification pending |
+| Concurrent withdrawals | Pessimistic locking implemented; concurrent verification pending |
+| Cross-customer account access | Testing pending |
+| Invalid or expired JWT | Testing pending |
+| Negative account balance | Service validation implemented; database constraint review pending |
+
+### Automated test results
+- Maven tests: 14 passed.
+- Failures: 0.
+- Errors: 0.
