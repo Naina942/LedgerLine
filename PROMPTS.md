@@ -182,3 +182,32 @@ Used ChatGPT to:
 ### Learning
 
 Learned how JWT filters authenticate requests, how Spring Security obtains user authorities, how LEFT JOIN supports deposit history queries, how environment variables protect application secrets, and how to verify money integrity using PostgreSQL integration tests. work in JPQL, how to inspect Hibernate SQL logs, and how JWT authentication is processed through Spring Security filters.
+
+
+
+## November 9, 2026 – Role-Based Authorization and Security Verification
+
+### Work completed
+- Reviewed User entity, Role enum, AuthService, AuthController, JwtAuthenticationFilter and SecurityConfig.
+- Verified public registration always assigns CUSTOMER role.
+- Added CUSTOMER-only authorization to AccountController.
+- Added CUSTOMER-only authorization to TransactionController.
+- Verified CUSTOMER account access: 200 OK.
+- Verified AUDITOR account access: 403 Forbidden.
+- Verified AUDITOR transaction history access: 403 Forbidden.
+- Verified ADMIN-only endpoint: 200 OK.
+- Verified ADMIN cannot access customer account endpoint: 403 Forbidden.
+- Ran Maven tests: 14 passed, 0 failures, 0 errors.
+
+### AI assistance and verification
+- Used AI assistance to review Spring Security and implement role restrictions.
+- Manually tested role-based authorization using Postman.
+- Existing automated tests passed after the changes.
+
+### Remaining work
+- Cross-customer access testing.
+- Transfer and duplicate-transfer verification.
+- Concurrent withdrawal verification.
+- Ledger entry verification.
+- Invalid and expired JWT testing.
+- Database constraints and Java 21 compatibility review.
