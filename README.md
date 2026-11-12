@@ -187,3 +187,8 @@ Recommended separation: Vercel for the static frontend, Render (or a comparable 
 6. Keep deposits disabled. A payment provider, verified settlement callbacks, reconciliation, alerting, and production security review are prerequisites to enabling any customer credit flow.
 
 No live deployment or production security verification is claimed by this repository documentation.
+
+## Demo Links
+
+- **Demo Video:** [Watch BalanceVault Demo](https://drive.google.com/file/d/134RgyEI2dieoXcwjl5fZ0GYuJ3BwqOC9/view)
+- **Project Document:** [View BalanceVault Documentation](https://docs.google.com/document/d/1khoRKfiaLzzerLrw9DR2Bnn6q_07G1UG/edit)
