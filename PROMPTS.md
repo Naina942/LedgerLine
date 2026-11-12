@@ -1,32 +1,74 @@
-\# AI Usage Log
+# BalanceVault AI Development Log
 
+This is a dated summary of actual project development and verification work, not a verbatim transcript of AI conversations. Historical entries describe the Java/Spring iteration; the active application is now React/Vite with the Node.js API.
 
+## 2026-11-06 – Project setup and database configuration
 
-\## Date: 2026-11-06
+### Work
+- Set up the original Spring Boot backend with PostgreSQL and Maven.
+- Designed the initial User, Role, Account, AccountType, and AccountStatus entities and repositories.
+- Initially placed a database password directly in configuration, then corrected the setup to read `DB_PASSWORD` from the environment.
+- Investigated a Hibernate connection failure and found that the process environment did not contain the expected variable. Loading the variable in the correct terminal resolved the connection issue.
 
+### Verification and lessons
+- Maven tests reported `BUILD SUCCESS` after dependency refresh.
+- Keep credentials outside source files, and check the environment of the process that actually starts the application.
 
+## 2026-11-07 – Java transaction and idempotency implementation
 
-\### 1. Project Setup
+### Work
+- Added Java/Spring deposit, withdrawal, and transfer operations using `BigDecimal`, database transactions, and row locking.
+- Added idempotency records, unique request keys, and request hashes to detect key reuse with a different payload.
+- Added unit and PostgreSQL integration tests for deposits, withdrawals, transfers, duplicate requests, and ledger entries.
 
-\- Used AI to configure a Spring Boot backend with PostgreSQL.
+### Verification and lessons
+- The historical log recorded five passing unit tests, then 11 and 12 passing Maven tests as integration coverage expanded.
+- Tests checked balance changes and corresponding ledger entries. These results apply to the historical Java implementation and are not proof of current Node API or production behavior.
 
-\- Set up the Maven project and required dependencies.
+## 2026-11-08 – Transaction history debugging
 
+### Work
+- Implemented the Java `GET /api/transactions/my` history endpoint and investigated its repository query and entity relationships.
+- Used Hibernate SQL logging and considered whether join behavior excluded deposits with a null source account.
 
+### Mistakes and verification status
+- The initial implicit-join diagnosis was only a hypothesis, not a confirmed root cause.
+- The revised query still needed a Postman check at the time.
+- An expired JWT was suspected as a cause of a `403`, but that was not confirmed.
+- The history endpoint and JWT behavior were explicitly left as needing verification; this entry does not claim them complete.
 
-\### 2. Entity Design
+## 2026-11-12 – Node API account generation and transaction safeguards
 
-\- Used AI guidance to design User, Role, Account, AccountType and AccountStatus entities.
+### Work and corrections
+- Investigated the unsafe `crypto.randomInt` range used for 17-digit account numbers. Replaced it with rejection-sampled `randomBytes`, `BigInt` range arithmetic, and a string result so JavaScript number precision is not involved.
+- Reviewed customer deposits and found the endpoint could not establish payment settlement. Disabled deposits in the service until a verified settlement provider exists; the customer form must not create money.
+- An integration run exposed PostgreSQL serialization failures reported through Prisma with SQLSTATE `40001`. Added bounded retries for that database conflict alongside Prisma's serialization error code.
+- A first integration attempt also exposed a missing clearing-account/test-fixture prerequisite. The test setup was corrected to provision a valid clearing account and balanced starting ledger entries rather than weakening runtime checks.
 
-\- Created JPA repositories for database operations.
+### Verification
+- Backend unit tests: 13 passed.
+- Backend PostgreSQL integration tests: 5 reported, 0 failed. Coverage included RBAC, account ownership, idempotency, append-only records, and concurrent withdrawals.
+- Redis responded to a direct connectivity check during the final review. Database grants and deployment security were not verified against a production system.
 
+## 2026-11-12 – Frontend blank-page correction
 
+### Work and corrections
+- The Vite entry point imported a default `App`, but `App.jsx` contained only an incomplete transaction form and did not export the application. Restored the routed React app using the existing API contracts and visual styles rather than replacing the design.
+- Added readable request errors, account/transaction pages, authenticated role-specific views, and source-filtered transfer destinations. Kept deposit submission disabled.
+- An API smoke test from `127.0.0.1:5173` did not match the backend's configured `http://localhost:5173` CORS origin. Repeated the harmless invalid-login check using `localhost`; the API returned the expected invalid-credentials response. No test account or financial record was created.
 
-\### 3. Database Configuration
+### Verification
+- Frontend production build passed; frontend tests: 1 passed.
+- Direct refresh of `/register` rendered the registration page.
+- Authenticated account creation and successful customer transactions were not exercised end to end.
 
-\- Initially configured the database password directly.
+## 2026-11-12 – Documentation and deployment-readiness review
 
-\- Corrected this by using the `DB\_PASSWORD` environment variable.
+### Work and corrections
+- Replaced the stale Java-only project overview with the active React/Vite and Node/Prisma architecture while retaining the Java `Backend/` tree.
+- Reviewed environment variable names without printing values, confirmed local Redis connectivity, and checked that configured database/secret values did not appear in the built frontend assets.
+- Found that the backend Docker runtime stage omits `scripts/`, so it cannot run the repository's migration, permission, or bootstrap scripts as packaged. Documented a separate protected release job as the deployment path.
+- The local API process was not running during the final health/readiness probe, so no live health response or deployed URL is claimed. Production database permissions, CORS, secrets handling, and deployment security still require separate verification.
 
 
 
@@ -211,3 +253,7 @@ Learned how JWT filters authenticate requests, how Spring Security obtains user 
 - Ledger entry verification.
 - Invalid and expired JWT testing.
 - Database constraints and Java 21 compatibility review.
+
+### Verification
+- Frontend build and unit test passed; backend unit and integration test commands passed as reported above.
+- Git status was inspected; no files were staged, committed, pushed, or deployed during this work.

@@ -1,100 +1,153 @@
 
-package com.ledgerline.ledgerline.service;
+import { randomBytes } from "node:crypto";
+import { HttpError } from "../errors.js";
+import { audit } from "./audit-service.js";
 
-import java.math.BigDecimal;
-import java.security.SecureRandom;
-import java.util.List;
+const accountSelect = {
+  id: true,
+  accountNumber: true,
+  accountType: true,
+  status: true,
+  currency: true,
+  balancePaise: true,
+  createdAt: true,
+};
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+const mapAccount = (account) => ({
+  ...account,
+  balancePaise: account.balancePaise.toString(),
+});
 
-import com.ledgerline.ledgerline.dto.AccountResponse;
-import com.ledgerline.ledgerline.dto.CreateAccountRequest;
-import com.ledgerline.ledgerline.entity.Account;
-import com.ledgerline.ledgerline.entity.AccountStatus;
-import com.ledgerline.ledgerline.entity.User;
-import com.ledgerline.ledgerline.repository.AccountRepository;
-import com.ledgerline.ledgerline.repository.UserRepository;
+function generateAccountNumber() {
+  const randomValue = BigInt(`0x${randomBytes(8).toString("hex")}`);
 
-@Service
-public class AccountService {
+  return (
+    10_000_000_000_000_000n +
+    (randomValue % 90_000_000_000_000_000n)
+  ).toString();
+}
 
-    private final AccountRepository accountRepository;
-    private final UserRepository userRepository;
-    private final SecureRandom secureRandom = new SecureRandom();
+export function createAccountService(prisma) {
+  return {
+    async create(user, accountType) {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const accountNumber = generateAccountNumber();
 
-    public AccountService(
-            AccountRepository accountRepository,
-            UserRepository userRepository) {
-        this.accountRepository = accountRepository;
-        this.userRepository = userRepository;
-    }
+        try {
+          return await prisma.$transaction(async (tx) => {
+            const account = await tx.account.create({
+              data: {
+                accountNumber,
+                ownerId: user.id,
+                accountType,
+                currency: "INR",
+              },
+              select: accountSelect,
+            });
 
-    @Transactional(readOnly = true)
-    public List<AccountResponse> getMyAccounts(String username) {
+            await audit(
+              tx,
+              user.id,
+              "ACCOUNT_CREATED",
+              account.id,
+              { accountType }
+            );
 
-        List<Account> accounts =
-                accountRepository.findByOwnerUsername(username);
+            return mapAccount(account);
+          });
+        } catch (error) {
+          if (error?.code !== "P2002" || attempt === 4) {
+            throw error;
+          }
+        }
+      }
 
-        return accounts.stream()
-                .map(account -> new AccountResponse(
-                        account.getAccountNumber(),
-                        account.getAccountType().name(),
-                        account.getBalance(),
-                        account.getCurrency(),
-                        account.getStatus().name(),
-                        account.getCreatedAt() != null
-                                ? account.getCreatedAt().toString()
-                                : null
-                ))
-                .toList();
-    }
+      throw new HttpError(
+        503,
+        "Unable to allocate a unique account number",
+        "ACCOUNT_NUMBER_UNAVAILABLE"
+      );
+    },
 
-    @Transactional
-    public AccountResponse createAccount(
-            String username,
-            CreateAccountRequest request) {
+    async listMine(userId) {
+      const accounts = await prisma.account.findMany({
+        where: {
+          ownerId: userId,
+          isSystem: false,
+        },
+        select: accountSelect,
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
-        User owner = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("User not found"));
+      return accounts.map(mapAccount);
+    },
 
-        String accountNumber = generateAccountNumber();
+    async getMine(userId, accountNumber) {
+      const account = await prisma.account.findFirst({
+        where: {
+          accountNumber,
+          ownerId: userId,
+          isSystem: false,
+        },
+        select: accountSelect,
+      });
 
-        Account account = new Account();
-        account.setAccountNumber(accountNumber);
-        account.setOwner(owner);
-        account.setAccountType(request.getAccountType());
-        account.setBalance(BigDecimal.ZERO);
-        account.setCurrency("INR");
-        account.setStatus(AccountStatus.ACTIVE);
-
-        Account savedAccount = accountRepository.save(account);
-
-        return new AccountResponse(
-                savedAccount.getAccountNumber(),
-                savedAccount.getAccountType().name(),
-                savedAccount.getBalance(),
-                savedAccount.getCurrency(),
-                savedAccount.getStatus().name(),
-                savedAccount.getCreatedAt() != null
-                        ? savedAccount.getCreatedAt().toString()
-                        : null
+      if (!account) {
+        throw new HttpError(
+          404,
+          "Account was not found",
+          "NOT_FOUND"
         );
-    }
+      }
 
-    private String generateAccountNumber() {
+      return mapAccount(account);
+    },
 
-        String accountNumber;
+    async updateStatus(actorId, accountId, status) {
+      const result = await prisma.$transaction(async (tx) => {
+        const account = await tx.account.findUnique({
+          where: { id: accountId },
+        });
 
-        do {
-            long number = 1_000_000_000_000_000L
-                    + secureRandom.nextLong(9_000_000_000_000_000L);
+        if (!account || account.isSystem) {
+          throw new HttpError(
+            404,
+            "Account was not found",
+            "NOT_FOUND"
+          );
+        }
 
-            accountNumber = String.valueOf(number);
+        if (status === "CLOSED" && account.balancePaise !== 0n) {
+          throw new HttpError(
+            409,
+            "An account with a non-zero balance cannot be closed",
+            "ACCOUNT_HAS_BALANCE"
+          );
+        }
 
-        } while (accountRepository.existsByAccountNumber(accountNumber));
+        const updated = await tx.account.update({
+          where: { id: accountId },
+          data: { status },
+          select: accountSelect,
+        });
 
-        return accountNumber;
-    }
+        await audit(
+          tx,
+          actorId,
+          "ACCOUNT_STATUS_CHANGED",
+          accountId,
+          {
+            from: account.status,
+            to: status,
+          }
+        );
+
+        return updated;
+      });
+
+      return mapAccount(result);
+    },
+  };
 }

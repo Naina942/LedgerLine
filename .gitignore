@@ -17,6 +17,24 @@ target/
 # Node
 node_modules/
 dist/
+coverage/
+npm-debug.log*
+
+# Local environment and data
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+*.sqlite
+*.sqlite3
+postgres-data/
+redis-data/
 
 # OS
 .DS_Store

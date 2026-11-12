@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +20,7 @@ import com.ledgerline.ledgerline.service.TransactionService;
 
 @RestController
 @RequestMapping("/api/transactions")
+@PreAuthorize("hasRole('CUSTOMER')")
 public class TransactionController {
 
     private final TransactionService transactionService;
