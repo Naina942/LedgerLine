@@ -7,7 +7,7 @@ BalanceVault is a financial ledger and transaction-management project. It is an 
 
 - Customer-initiated deposits are disabled and return `503 DEPOSITS_UNAVAILABLE`.
 - Do not credit customer funds through an unverified deposit form. Deposits must remain disabled until a verified payment-settlement provider, signature validation, reconciliation, and operational controls are implemented and tested.
-- Production database permissions, deployment security, secrets management, monitoring, and live URLs have not been independently verified. Do not claim production security or payment integration is complete.
+- Live frontend and API endpoints are listed below and basic health/readiness checks have been exercised. Production security, permissions, monitoring, and independent security assessment have not been independently verified. No payment integration is claimed.
 - The Java application in `Backend/ledgerline/` is retained as a legacy/alternate implementation. The active React application and Node API are under `frontend/` and `backend-node/`; the Java service is not part of the current Compose deployment.
 
 ## Features
@@ -24,11 +24,11 @@ These controls are implemented in code and covered to varying degrees by automat
 
 ## Architecture
 
-- `frontend/` — React 19, Vite, React Router, and Axios. The API URL is `VITE_API_URL` or defaults to `http://localhost:4000`.
-- `backend-node/` — Node.js/Express API, Prisma, PostgreSQL, Redis, authentication, validation, and role-specific routes.
-- `backend-node/prisma/` — Prisma schema, SQL migration, role/grant scripts, constraints, and triggers.
-- `compose.yaml` — Local PostgreSQL and Redis services bound to loopback.
-- `Backend/ledgerline/` — retained Java/Spring project; it is not used by the active frontend/Node/Compose setup.
+- `frontend/` â€” React 19, Vite, React Router, and Axios. The API URL is `VITE_API_URL` or defaults to `http://localhost:4000`.
+- `backend-node/` â€” Node.js/Express API, Prisma, PostgreSQL, Redis, authentication, validation, and role-specific routes.
+- `backend-node/prisma/` â€” Prisma schema, SQL migration, role/grant scripts, constraints, and triggers.
+- `compose.yaml` â€” Local PostgreSQL and Redis services bound to loopback.
+- `Backend/ledgerline/` â€” retained Java/Spring project; it is not used by the active frontend/Node/Compose setup.
 
 ## Prerequisites
 
@@ -186,7 +186,14 @@ Recommended separation: Vercel for the static frontend, Render (or a comparable 
 5. Test `GET /health` and `GET /ready`, browser CORS from the exact deployed origin, authentication/RBAC, and direct-route refreshes. Do not declare deployment complete until live URLs and dependency checks have been exercised.
 6. Keep deposits disabled. A payment provider, verified settlement callbacks, reconciliation, alerting, and production security review are prerequisites to enabling any customer credit flow.
 
-No live deployment or production security verification is claimed by this repository documentation.
+Live frontend and API endpoints are provided below. Production security verification is not claimed.
+
+## Live Deployment
+
+- **Live Website:** https://balancevault-nine.vercel.app
+- **Backend API:** https://balancevault-api-xcve.onrender.com
+- **API Health:** https://balancevault-api-xcve.onrender.com/health
+- **API Readiness:** https://balancevault-api-xcve.onrender.com/ready
 
 ## Demo Links
 
